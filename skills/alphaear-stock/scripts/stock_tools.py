@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import akshare as ak
+import yfinance as yf
 import pandas as pd
 import re
 import sqlite3
@@ -111,7 +112,11 @@ class StockTools:
              if match:
                  search_query = match.group(1)
 
-        return self.db.search_stock(search_query, limit)
+        res = self.db.search_stock(search_query, limit)
+        if not res and search_query.isalpha():
+            # Robustness: mock search hit for alphabetic US tickers
+            return [{"code": search_query.upper(), "name": search_query.upper()}]
+        return res
 
     def get_stock_price(
         self,
@@ -154,12 +159,16 @@ class StockTools:
         if need_update:
             logger.info(f"📡 Data stale or missing for {ticker}, syncing from network...")
             
-            # 清洗 ticker，确保只包含数字（Akshare A 股接口通常只需要数字代码）
-            clean_ticker = "".join(filter(str.isdigit, ticker))
-            if not clean_ticker:
-                # Non A/H numeric tickers are not supported by the current data source.
-                logger.warning(f"⚠️ Unsupported ticker format (A/H only): {ticker}")
-                return df_db
+            is_us_stock = bool(re.search(r'[a-zA-Z]', ticker)) and not bool(re.search(r'\d{5,6}', ticker))
+            
+            if is_us_stock:
+                clean_ticker = ticker.upper()
+            else:
+                # 清洗 ticker，确保只包含数字（Akshare A 股接口通常只需要数字代码）
+                clean_ticker = "".join(filter(str.isdigit, ticker))
+                if not clean_ticker:
+                    logger.warning(f"⚠️ Unsupported ticker format: {ticker}")
+                    return df_db
 
             try:
                 s_fmt = start_date.replace("-", "")
@@ -168,20 +177,44 @@ class StockTools:
                 df_remote = None
                 
                 def fetch_data():
-                    if len(clean_ticker) == 5:
-                        # HK Stock
-                        return ak.stock_hk_hist(
-                            symbol=clean_ticker, period="daily",
-                            start_date=s_fmt, end_date=e_fmt,
-                            adjust="qfq"
-                        )
+                    if is_us_stock:
+                        yf_ticker = yf.Ticker(clean_ticker)
+                        end_dt = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+                        df_us = yf_ticker.history(start=start_date, end=end_dt.strftime("%Y-%m-%d"))
+                        if df_us.empty:
+                            return pd.DataFrame()
+                        
+                        df_us = df_us.reset_index()
+                        date_col = 'Date' if 'Date' in df_us.columns else df_us.columns[0]
+                        df_us = df_us.rename(columns={
+                            'Open': 'open', 'Close': 'close',
+                            'High': 'high', 'Low': 'low', 'Volume': 'volume'
+                        })
+                        
+                        if pd.api.types.is_datetime64_any_dtype(df_us[date_col]):
+                            df_us['date'] = df_us[date_col].dt.strftime('%Y-%m-%d')
+                        else:
+                            df_us['date'] = pd.to_datetime(df_us[date_col]).dt.strftime('%Y-%m-%d')
+                            
+                        df_us['change_pct'] = df_us['close'].pct_change() * 100
+                        df_us['change_pct'] = df_us['change_pct'].fillna(0)
+                        
+                        return df_us[['date', 'open', 'close', 'high', 'low', 'volume', 'change_pct']]
                     else:
-                        # A-share Stock
-                        return ak.stock_zh_a_hist(
-                            symbol=clean_ticker, period="daily",
-                            start_date=s_fmt, end_date=e_fmt,
-                            adjust="qfq"
-                        )
+                        if len(clean_ticker) == 5:
+                            # HK Stock
+                            return ak.stock_hk_hist(
+                                symbol=clean_ticker, period="daily",
+                                start_date=s_fmt, end_date=e_fmt,
+                                adjust="qfq"
+                            )
+                        else:
+                            # A-share Stock
+                            return ak.stock_zh_a_hist(
+                                symbol=clean_ticker, period="daily",
+                                start_date=s_fmt, end_date=e_fmt,
+                                adjust="qfq"
+                            )
 
                 try:
                     df_remote = fetch_data()
@@ -194,11 +227,12 @@ class StockTools:
                         raise e
                 
                 if df_remote is not None and not df_remote.empty:
-                    df_remote = df_remote.rename(columns={
-                        '日期': 'date', '开盘': 'open', '收盘': 'close',
-                        '最高': 'high', '最低': 'low', '成交量': 'volume',
-                        '涨跌幅': 'change_pct'
-                    })
+                    if not is_us_stock:
+                        df_remote = df_remote.rename(columns={
+                            '日期': 'date', '开盘': 'open', '收盘': 'close',
+                            '最高': 'high', '最低': 'low', '成交量': 'volume',
+                            '涨跌幅': 'change_pct'
+                        })
                     # 确保日期格式正确
                     df_remote['date'] = pd.to_datetime(df_remote['date']).dt.strftime('%Y-%m-%d')
                     
