@@ -150,3 +150,9 @@ cp -r Awesome-finance-skills/skills/* ~/.config/opencode/skills/
 如需**完整的自动化金融分析框架**，请关注：
 
 **[DeepEar →](https://github.com/RKiding/AlphaEar)**
+
+---
+
+## 🌟 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=RKiding/Awesome-finance-skills&type=Date)](https://star-history.com/#RKiding/Awesome-finance-skills&Date)
