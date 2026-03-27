@@ -29,8 +29,8 @@ You can now install individual skills directly using `npx skills`:
 # Install a specific skill (e.g., alphaear-news)
 npx skills add RKiding/Awesome-finance-skills@alphaear-news
 
-# Or search for other skills
-npx skills find "get the finance news (alphaear-news)"
+# Or search for all the skills and then select one
+npx skills find "alphaear"
 ```
 
 #### Option 2: Manual Installation
