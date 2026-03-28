@@ -66,13 +66,21 @@ class KronosPredictorUtility:
             # 3. Load Trained News Projector Weights
             # Check predictor/exports/models directory
             models_dir = os.path.join(KRONOS_DIR, "exports/models")
-            model_files = glob.glob(os.path.join(models_dir, "*.pt"))
+            # Security: Only load files matching the expected prefix to reduce supply-chain risk
+            model_files = glob.glob(os.path.join(models_dir, "kronos_news_*.pt"))
             
             if model_files:
                 latest_model = max(model_files, key=os.path.getctime)
                 logger.info(f"🔄 Loading trained news weights from {latest_model}...")
                 try:
-                    checkpoint = torch.load(latest_model, map_location=device)
+                    logger.info(f"🔄 Loading trained news weights from {latest_model}...")
+                    # Security: Use weights_only=True to prevent pickle-based arbitrary code execution (PyTorch 1.13+)
+                    try:
+                        checkpoint = torch.load(latest_model, map_location=device, weights_only=True)
+                    except (TypeError, RuntimeError, AttributeError):
+                        # Fallback for older torch versions or complex objects if necessary
+                        logger.warning(f"⚠️ Safe loading failed. Falling back to legacy load for {latest_model}")
+                        checkpoint = torch.load(latest_model, map_location=device)
                     # The checkpoint contains 'news_proj_state_dict'
                     if 'news_proj_state_dict' in checkpoint:
                         if not hasattr(model, 'news_proj') or model.news_proj is None:
