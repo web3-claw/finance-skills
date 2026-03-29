@@ -125,7 +125,7 @@ def temporary_no_proxy():
                 os.environ[k] = v
 
 class StockTools:
-    """金融分析股票工具 - 结合高性能数据库缓存与增量更新"""
+    """金融分析股票工具 - 结合高性能数据库缓存与增量更新，支持获取实时行情及公司基本面"""
     
     def __init__(self, db: DatabaseManager, auto_update: bool = True):
         """
@@ -383,6 +383,67 @@ class StockTools:
                 logger.error(f"❌ Unexpected error during Akshare sync for {clean_ticker}: {e}")
         
         return df_db
+
+    def get_stock_fundamentals(self, ticker: str) -> Dict:
+        """
+        获取公司基本面数据（市值、行业、市盈率、财务摘要等）。
+        
+        Args:
+            ticker: 股票代码，如 "600519"、"AAPL" 或 "00700"。
+            
+        Returns:
+            包含基本面字段的字典。
+        """
+        is_us_stock = bool(re.search(r'[a-zA-Z]', ticker)) and not bool(re.search(r'\d{5,6}', ticker))
+        
+        # 清洗 ticker
+        if is_us_stock:
+            clean_ticker = ticker.upper()
+        else:
+            clean_ticker = "".join(filter(str.isdigit, ticker))
+
+        if is_us_stock:
+            # 美股路径: yfinance
+            try:
+                tk = yf.Ticker(clean_ticker)
+                info = tk.info
+                if not info or 'longName' not in info:
+                    logger.warning(f"⚠️ No fundamental data found for US stock: {clean_ticker}")
+                    return {}
+                return {
+                    "name": info.get("longName"),
+                    "sector": info.get("sector"),
+                    "industry": info.get("industry"),
+                    "market_cap": info.get("marketCap"),
+                    "pe_ratio": info.get("trailingPE"),
+                    "summary": info.get("longBusinessSummary", "")[:300] + "..." if info.get("longBusinessSummary") else "",
+                    "currency": info.get("currency")
+                }
+            except Exception as e:
+                logger.error(f"❌ yfinance fundamentals failed for {clean_ticker}: {e}")
+                return {}
+        else:
+            # A股/港股路径: akshare
+            try:
+                # 使用东财接口获取个股基本信息
+                df_info = ak.stock_individual_info_em(symbol=clean_ticker)
+                if df_info is None or df_info.empty:
+                    logger.warning(f"⚠️ No fundamental data found via akshare for: {clean_ticker}")
+                    return {}
+                
+                info_dict = dict(zip(df_info['item'], df_info['value']))
+                return {
+                    "name": info_dict.get("股票简称"),
+                    "code": info_dict.get("股票代码"),
+                    "sector": info_dict.get("行业"),
+                    "market_cap": info_dict.get("总市值"),
+                    "listing_date": info_dict.get("上市时间"),
+                    "pe_ratio": info_dict.get("市盈率(动)"),
+                }
+            except Exception as e:
+                logger.error(f"❌ akshare fundamentals failed for {clean_ticker}: {e}")
+                return {}
+
 
 
 def get_stock_analysis(ticker: str, db: DatabaseManager) -> str:

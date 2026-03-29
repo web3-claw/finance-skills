@@ -56,7 +56,7 @@ cp -r Awesome-finance-skills/skills/* ~/.config/opencode/skills/
 | Skill | Description | Key Feature |
 |:------|:------------|:------------|
 | **alphaear-news** | Real-time financial news & trends | 10+ sources, Polymarket data |
-| **alphaear-stock** | A-Share & HK stock data | Ticker search, OHLCV history |
+| **alphaear-stock** | A-Share, HK & US stock data | Ticker search, OHLCV, Fundamentals |
 | **alphaear-sentiment** | FinBERT / LLM sentiment analysis | Score: -1.0 ~ +1.0 |
 | **alphaear-predictor** | Kronos time-series forecasting | News-aware adjustments |
 | **alphaear-signal-tracker** | Investment signal evolution | Strengthen / Weaken / Falsify |
@@ -140,7 +140,7 @@ cp -r Awesome-finance-skills/skills/* ~/.config/opencode/skills/
 | 技能 | 功能描述 | 核心特性 |
 |:-----|:---------|:---------|
 | **alphaear-news** | 实时财经新闻与热点趋势 | 10+ 信源，Polymarket 数据 |
-| **alphaear-stock** | A股/港股行情数据 | 股票搜索、OHLCV 历史数据 |
+| **alphaear-stock** | A股/港股/美股行情与基本面 | 股票搜索、OHLCV、个股基本面 |
 | **alphaear-sentiment** | FinBERT / LLM 情感分析 | 评分范围: -1.0 ~ +1.0 |
 | **alphaear-predictor** | Kronos 时序预测模型 | 结合新闻情绪动态调整 |
 | **alphaear-signal-tracker** | 投资信号演化追踪 | 强化 / 弱化 / 证伪 |

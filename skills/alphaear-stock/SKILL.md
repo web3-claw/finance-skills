@@ -21,8 +21,20 @@ Use `scripts/stock_tools.py` via `StockTools`.
 -   **Get Price**: `get_stock_price(ticker, start_date, end_date)`
     -   Returns DataFrame with OHLCV data.
     -   Dates format: "YYYY-MM-DD".
+-   **Get Fundamentals**: `get_stock_fundamentals(ticker)`
+    -   Returns dict with sector, industry, market cap, PE ratio, and summary.
+    -   Supports A-Share/HK/US stocks.
 
 ## Dependencies
 
 -   `pandas`, `requests`, `akshare`, `yfinance`
 -   `scripts/database_manager.py` (stock tables)
+
+## Notes
+
+-   **Proxy**: For US stock data (via `yfinance`), you may need to set environment variables if your network cannot reach Yahoo Finance directly:
+    ```bash
+    export HTTP_PROXY="http://<proxy_ip>:<port>"
+    export HTTPS_PROXY="http://<proxy_ip>:<port>"
+    ```
+-   **A-Share/HK**: Data is primarily fetched via `akshare` (EastMoney), which usually works best with a direct connection in China. The tool automatically detects proxy issues and attempts direct connection for these markets.
